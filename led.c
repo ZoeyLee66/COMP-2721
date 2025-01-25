@@ -23,7 +23,7 @@
 // =======================================================
 // Tunables
 // The OK/Act LED is connected to BCM_GPIO pin 47 (RPi 2)
-#define ACT  47
+#define ACT  12
 // delay for blinking
 #define DELAY 700
 // =======================================================
@@ -106,8 +106,8 @@ int main (void)
   // -----------------------------------------------------------------------------
   // setting the mode
   fprintf(stderr, "setting pin %d to %d ...\n", pinACT, OUTPUT);
-  fSel =  4;    // GPIO 47 lives in register 4 (GPFSEL)
-  shift =  21;  // GPIO 47 sits in slot 7 of register 4, thus shift by 7*3 (3 bits per pin)
+  fSel =  1;    // GPIO 47 lives in register 4 (GPFSEL)
+  shift =  6;  // GPIO 47 sits in slot 7 of register 4, thus shift by 7*3 (3 bits per pin)
   *(gpio + fSel) = (*(gpio + fSel) & ~(7 << shift)) | (1 << shift) ;  // Sets bits to one = output
 
   // -----------------------------------------------------------------------------
@@ -140,7 +140,7 @@ int main (void)
     }
   }
  // Clean up: write LOW
- clrOff = 11; 
+ clrOff = 10; 
  *(gpio + clrOff) = 1 << (pinACT & 31) ;
 
  fprintf(stderr, "end main.\n");

@@ -28,8 +28,8 @@
 // =======================================================
 // Tunables
 // PINs (based on BCM numbering)
-#define LED 23
-#define BUTTON 24
+#define LED 12
+#define BUTTON 16
 // delay for loop iterations (mainly), in ms
 #define DELAY 200
 // =======================================================
@@ -113,15 +113,15 @@ int main (void)
   // -----------------------------------------------------------------------------
   // setting the mode
 
-  // controlling LED pin 23
-  fSel =  2;    // GPIO 23 lives in register 2 (GPFSEL2)
-  shift =  9;  // GPIO 23 sits in slot 3 of register 2, thus shift by 3*3 (3 bits per pin)
+  // controlling LED pin 12
+  fSel =  1;    // GPIO 12 lives in register 2 (GPFSEL2)
+  shift =  6;  // GPIO 12 sits in slot 3 of register 2, thus shift by 3*3 (3 bits per pin)
   // C version of setting LED
   *(gpio + fSel) = (*(gpio + fSel) & ~(7 << shift)) | (1 << shift) ;  // Sets bits to one = output
 
   // controlling button pin 24
-  fSel =  2;    // GPIO 24 lives in register 2 (GPFSEL2)
-  shift =  12;  // GPIO 24 sits in slot 4 of register 3, thus shift by 4*3 (3 bits per pin)
+  fSel =  1;    // GPIO 24 lives in register 2 (GPFSEL2)
+  shift =  18;  // GPIO 24 sits in slot 4 of register 3, thus shift by 4*3 (3 bits per pin)
   // C version of mode input for button
   *(gpio + fSel) = *(gpio + fSel) & ~(7 << shift); // Sets bits to one = output
 

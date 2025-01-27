@@ -129,49 +129,25 @@ int main (void)
 
   // now, start a loop, listening to pinButton and if set pressed, set pinLED
  fprintf(stderr, "starting loop ...\n");
- for (j=0; j<1000; j++)
-  {
-    if ((pinButton & 0xFFFFFFC0 /* PI_GPIO_MASK */) == 0)		// On-Board Pin; bottom 64 pins belong to the Pi
-      {
-	theValue = LOW ;
+ while (1) {
+        // Read button state
+        theValue = (*(gpio + 13 /* GPLEV0 */) & (1 << (BUTTON & 31))) ? HIGH : LOW;
 
-        if ((*(gpio + 13 /* GPLEV0 */) & (1 << (BUTTON & 31))) != 0)
-          theValue = HIGH ;
-        else
-          theValue = LOW ;
-      }
-      else
-      {
-        fprintf(stderr, "only supporting on-board pins\n");          exit(1);
-       }
-
-
-    if ((pinLED & 0xFFFFFFC0 /*PI_GPIO_MASK */) == 0)		
-      {
+        // Set or clear the LED based on button state
         if (theValue == HIGH) {
-	  clrOff = 10; // GPCLR0 for pin 23
-          *(gpio + clrOff) = 1 << (LED & 31) ;
+            setOff = 7; // GPSET0 for GPIO 12
+            *(gpio + setOff) = 1 << (LED & 31); // Turn LED ON
         } else {
-	  setOff = 7; // GPSET0 for pin 23
-          *(gpio + setOff) = 1 << (LED & 31) ;
-	}
-      }
-      else
-      {
-        fprintf(stderr, "only supporting on-board pins\n");          exit(1);
-       }
+            clrOff = 10; // GPCLR0 for GPIO 12
+            *(gpio + clrOff) = 1 << (LED & 31); // Turn LED OFF
+        }
 
-    // INLINED delay
-    {
-      struct timespec sleeper, dummy ;
-
-      // fprintf(stderr, "delaying by %d ms ...\n", howLong);
-      sleeper.tv_sec  = (time_t)(howLong / 1000) ;
-      sleeper.tv_nsec = (long)(howLong % 1000) * 1000000 ;
-
-      nanosleep (&sleeper, &dummy) ;
+        // Delay
+        struct timespec sleeper, dummy;
+        sleeper.tv_sec = (time_t)(howLong / 1000);
+        sleeper.tv_nsec = (long)(howLong % 1000) * 1000000;
+        nanosleep(&sleeper, &dummy);
     }
-  }
  // Clean up: write LOW
  *(gpio + 7) = 1 << (23 & 31) ;
 

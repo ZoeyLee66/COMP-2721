@@ -120,7 +120,7 @@ int main (void)
 
     if ((pinACT & 0xFFFFFFC0 /* PI_GPIO_MASK */) == 0)	// bottom 64 pins belong to the Pi	
       {
-	int off = (theValue == LOW) ? 11 : 8; // ACT/LED 47; register number for GPSET/GPCLR
+	int off = (theValue == LOW) ? 10 : 7; // ACT/LED 47; register number for GPSET/GPCLR
         *(gpio + off) = 1 << (pinACT & 31) ;
       }
       else

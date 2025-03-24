@@ -4,7 +4,6 @@ import librosa
 import RPi.GPIO as GPIO
 import time
 
-# 🎛 GPIO 설정 (LED 핀 할당)
 RED_PIN = 17
 GREEN_PIN = 27
 BLUE_PIN = 22
@@ -18,7 +17,6 @@ GPIO.setup(BLUE_PIN, GPIO.OUT)
 GPIO.setup(YELLOW_PIN, GPIO.OUT)
 GPIO.setup(WHITE_PIN, GPIO.OUT)
 
-# PWM 초기화 (100Hz 주파수)
 pwm_red = GPIO.PWM(RED_PIN, 100)
 pwm_green = GPIO.PWM(GREEN_PIN, 100)
 pwm_blue = GPIO.PWM(BLUE_PIN, 100)
@@ -31,30 +29,25 @@ pwm_blue.start(0)
 pwm_yellow.start(0)
 pwm_white.start(0)
 
-# 🎤 오디오 설정
-FORMAT = pyaudio.paInt16  # 16비트 오디오
-CHANNELS = 1  # 모노 입력
-RATE = 44100  # 샘플링 레이트 (44.1kHz)
-CHUNK = 1024  # 오디오 버퍼 크기
+FORMAT = pyaudio.paInt16 
+CHANNELS = 1 
+RATE = 44100 
+CHUNK = 1024
 
-# PyAudio 인스턴스 생성
 audio = pyaudio.PyAudio()
 stream = audio.open(format=FORMAT, channels=CHANNELS,
                     rate=RATE, input=True, frames_per_buffer=CHUNK)
 
 def get_bpm(y, sr):
-    """Librosa를 사용하여 BPM을 계산"""
     onset_env = librosa.onset.onset_strength(y=y, sr=sr)
     bpm, _ = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr)
-    return int(bpm)  # BPM 정수 값으로 변환
+    return int(bpm) 
 
 try:
     while True:
-        # 🎤 마이크에서 오디오 데이터 가져오기
         data = stream.read(CHUNK, exception_on_overflow=False)
-        audio_data = np.frombuffer(data, dtype=np.int16)  # NumPy 배열 변환
+        audio_data = np.frombuffer(data, dtype=np.int16)
 
-        # 🎼 FFT 변환하여 주파수 분석
         fft_result = np.abs(np.fft.rfft(audio_data))
         freqs = np.fft.rfftfreq(len(audio_data), 1.0 / RATE)
         dominant_freq = freqs[np.argmax(fft_result)]  # 가장 강한 주파수 찾기

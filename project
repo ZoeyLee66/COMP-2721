@@ -4,18 +4,15 @@ import librosa
 import RPi.GPIO as GPIO
 import time
 
-RED_PIN = 17
-GREEN_PIN = 27
-BLUE_PIN = 22
-YELLOW_PIN = 23
-WHITE_PIN = 24
+RED_PIN = 17     
+GREEN_PIN = 27   
+BLUE_PIN = 22   
+YELLOW_PIN = 23  
+WHITE_PIN = 24   
 
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(RED_PIN, GPIO.OUT)
-GPIO.setup(GREEN_PIN, GPIO.OUT)
-GPIO.setup(BLUE_PIN, GPIO.OUT)
-GPIO.setup(YELLOW_PIN, GPIO.OUT)
-GPIO.setup(WHITE_PIN, GPIO.OUT)
+for pin in [RED_PIN, GREEN_PIN, BLUE_PIN, YELLOW_PIN, WHITE_PIN]:
+    GPIO.setup(pin, GPIO.OUT)
 
 pwm_red = GPIO.PWM(RED_PIN, 100)
 pwm_green = GPIO.PWM(GREEN_PIN, 100)
@@ -23,25 +20,25 @@ pwm_blue = GPIO.PWM(BLUE_PIN, 100)
 pwm_yellow = GPIO.PWM(YELLOW_PIN, 100)
 pwm_white = GPIO.PWM(WHITE_PIN, 100)
 
-pwm_red.start(0)
-pwm_green.start(0)
-pwm_blue.start(0)
-pwm_yellow.start(0)
-pwm_white.start(0)
+for pwm in [pwm_red, pwm_green, pwm_blue, pwm_yellow, pwm_white]:
+    pwm.start(0)
 
-FORMAT = pyaudio.paInt16 
-CHANNELS = 1 
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
 RATE = 44100 
 CHUNK = 1024
 
 audio = pyaudio.PyAudio()
-stream = audio.open(format=FORMAT, channels=CHANNELS,
-                    rate=RATE, input=True, frames_per_buffer=CHUNK)
+stream = audio.open(format=FORMAT,
+                    channels=CHANNELS,
+                    rate=RATE,
+                    input=True,
+                    frames_per_buffer=CHUNK)
 
 def get_bpm(y, sr):
     onset_env = librosa.onset.onset_strength(y=y, sr=sr)
     bpm, _ = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr)
-    return int(bpm) 
+    return int(bpm)
 
 try:
     while True:
@@ -50,49 +47,43 @@ try:
 
         fft_result = np.abs(np.fft.rfft(audio_data))
         freqs = np.fft.rfftfreq(len(audio_data), 1.0 / RATE)
-        dominant_freq = freqs[np.argmax(fft_result)]  # 가장 강한 주파수 찾기
+        dominant_freq = freqs[np.argmax(fft_result)]
 
-        # 🎵 BPM 분석 (Librosa)
-        y = audio_data.astype(float) / np.max(audio_data)  # Normalize
-        bpm = get_bpm(y, RATE)  # BPM 측정
+        if np.max(np.abs(audio_data)) == 0:
+            normalized_audio = audio_data.astype(float)
+        else:
+            normalized_audio = audio_data.astype(float) / np.max(np.abs(audio_data))
+        
+        bpm = get_bpm(normalized_audio, RATE)
         print(f"Detected BPM: {bpm}")
 
-        # 🔥 LED 반응 설정
-        if bpm <= 90:  # 느린 BPM → 초록, 파랑, 흰색 활성화
-            pwm_red.ChangeDutyCycle(0)    # 빨강 OFF
-            pwm_yellow.ChangeDutyCycle(0)  # 노랑 OFF
-            
-            pwm_green.ChangeDutyCycle(50)  # 초록 ON
-            pwm_blue.ChangeDutyCycle(50)   # 파랑 ON
-            pwm_white.ChangeDutyCycle(50)  # 흰색 ON
-
-        elif bpm >= 120:  # 빠른 BPM → 흰색, 빨강, 노랑 활성화
-            pwm_green.ChangeDutyCycle(0)  # 초록 OFF
-            pwm_blue.ChangeDutyCycle(0)   # 파랑 OFF
-            
-            pwm_red.ChangeDutyCycle(80)   # 빨강 ON
-            pwm_yellow.ChangeDutyCycle(80) # 노랑 ON
-            pwm_white.ChangeDutyCycle(80) # 흰색 ON
-            
-        else:  # 중간 BPM (90~120) → 모든 LED 적당히 밝게
+        if bpm <= 90: 
+            pwm_red.ChangeDutyCycle(0)
+            pwm_yellow.ChangeDutyCycle(0)
+            pwm_green.ChangeDutyCycle(50)
+            pwm_blue.ChangeDutyCycle(50)
+            pwm_white.ChangeDutyCycle(50)
+        elif bpm >= 120:  
+            pwm_green.ChangeDutyCycle(0)
+            pwm_blue.ChangeDutyCycle(0)
+            pwm_red.ChangeDutyCycle(80)
+            pwm_yellow.ChangeDutyCycle(80)
+            pwm_white.ChangeDutyCycle(80)
+        else:  
             pwm_red.ChangeDutyCycle(30)
             pwm_yellow.ChangeDutyCycle(30)
             pwm_green.ChangeDutyCycle(30)
             pwm_blue.ChangeDutyCycle(30)
             pwm_white.ChangeDutyCycle(50)
 
-        time.sleep(0.5)  # 일정 시간 간격으로 분석
+        time.sleep(0.5)
 
 except KeyboardInterrupt:
-    print("프로그램 종료...")
+    print("Program finishes")
 
 finally:
-    # 모든 PWM 및 GPIO 정리
-    pwm_red.stop()
-    pwm_green.stop()
-    pwm_blue.stop()
-    pwm_yellow.stop()
-    pwm_white.stop()
+    for pwm in [pwm_red, pwm_green, pwm_blue, pwm_yellow, pwm_white]:
+        pwm.stop()
     GPIO.cleanup()
     stream.stop_stream()
     stream.close()

@@ -1,39 +1,47 @@
-chunk = 1024
-wf = wave.open("music.wav", "rb")
+import librosa
+import numpy as np
+import RPi.GPIO as GPIO
+import time
 
-p = pyaudio.PyAudio()
-stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
-                channels=wf.getnchannels(),
-                rate=wf.getframerate(),
-                output=True)
+RED_PIN = 17    
+GREEN_PIN = 27   
+BLUE_PIN = 22   
+YELLOW_PIN = 23  
+WHITE_PIN = 24  
 
-def get_volume(data):
-    count = len(data) // 2
-    fmt = "%dh" % count
-    shorts = struct.unpack(fmt, data)
-    np_shorts = np.array(shorts, dtype=np.int16)
-    rms = np.sqrt(np.mean(np_shorts**2))
-    volume = min(100, rms / 300)
-    return volume
+GPIO.setmode(GPIO.BCM)
+for pin in [RED_PIN, GREEN_PIN, BLUE_PIN, YELLOW_PIN, WHITE_PIN]:
+    GPIO.setup(pin, GPIO.OUT)
 
-data = wf.readframes(chunk)
-while data:
-    stream.write(data)
+def led_on(pin):
+    GPIO.output(pin, GPIO.HIGH)
 
-    volume = get_volume(data)
+def led_off(pin):
+    GPIO.output(pin, GPIO.LOW)
 
-    pwm_red.ChangeDutyCycle(volume if volume > 30 else 0)
-    pwm_green.ChangeDutyCycle(100 - volume if volume > 30 else 0)
-    pwm_blue.ChangeDutyCycle(volume / 2)
-    pwm_yellow.ChangeDutyCycle(volume / 1.5)
-    pwm_white.ChangeDutyCycle(volume)
+def get_bpm(y, sr):
+    onset_env = librosa.onset.onset_strength(y=y, sr=sr)
+    bpm, _ = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr)
+    return int(bpm)
 
-    data = wf.readframes(chunk)
+audio_file = 'audio.mp3' 
+y, sr = librosa.load(audio_file, sr=44100, mono=True)
+bpm = get_bpm(y, sr)
+print(f"Detected BPM: {bpm}")
 
-stream.stop_stream()
-stream.close()
-p.terminate()
+for pin in [RED_PIN, GREEN_PIN, BLUE_PIN, YELLOW_PIN, WHITE_PIN]:
+    led_off(pin)
 
-for pwm in [pwm_red, pwm_green, pwm_blue, pwm_yellow, pwm_white]:
-    pwm.stop()
+if bpm <= 90:
+    led_on(GREEN_PIN)
+    led_on(BLUE_PIN)
+elif bpm >= 120:
+    led_on(RED_PIN)
+    led_on(YELLOW_PIN)
+else:
+    for pin in [RED_PIN, GREEN_PIN, BLUE_PIN, YELLOW_PIN, WHITE_PIN]:
+        led_on(pin)
+
+time.sleep(10)
+
 GPIO.cleanup()

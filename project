@@ -1,58 +1,38 @@
-import librosa
-import numpy as np
-import RPi.GPIO as GPIO
-import time
+chunk = 1024
+wf = wave.open("music.wav", "rb")
 
-RED_PIN = 17    
-GREEN_PIN = 27  
-BLUE_PIN = 22   
-YELLOW_PIN = 23 
-WHITE_PIN = 24  
+p = pyaudio.PyAudio()
+stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
+                channels=wf.getnchannels(),
+                rate=wf.getframerate(),
+                output=True)
 
-GPIO.setmode(GPIO.BCM)
-for pin in [RED_PIN, GREEN_PIN, BLUE_PIN, YELLOW_PIN, WHITE_PIN]:
-    GPIO.setup(pin, GPIO.OUT)
+def get_volume(data):
+    count = len(data) // 2
+    fmt = "%dh" % count
+    shorts = struct.unpack(fmt, data)
+    np_shorts = np.array(shorts, dtype=np.int16)
+    rms = np.sqrt(np.mean(np_shorts**2))
+    volume = min(100, rms / 300)
+    return volume
 
-pwm_red = GPIO.PWM(RED_PIN, 100)
-pwm_green = GPIO.PWM(GREEN_PIN, 100)
-pwm_blue = GPIO.PWM(BLUE_PIN, 100)
-pwm_yellow = GPIO.PWM(YELLOW_PIN, 100)
-pwm_white = GPIO.PWM(WHITE_PIN, 100)
+data = wf.readframes(chunk)
+while data:
+    stream.write(data)
 
-for pwm in [pwm_red, pwm_green, pwm_blue, pwm_yellow, pwm_white]:
-    pwm.start(0) 
+    volume = get_volume(data)
 
-def get_bpm(y, sr):
-    onset_env = librosa.onset.onset_strength(y=y, sr=sr)
-    bpm, _ = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr)
-    return int(bpm)
+    pwm_red.ChangeDutyCycle(volume if volume > 30 else 0)
+    pwm_green.ChangeDutyCycle(100 - volume if volume > 30 else 0)
+    pwm_blue.ChangeDutyCycle(volume / 2)
+    pwm_yellow.ChangeDutyCycle(volume / 1.5)
+    pwm_white.ChangeDutyCycle(volume)
 
-audio_file = 'audio.wav'
+    data = wf.readframes(chunk)
 
-y, sr = librosa.load(audio_file, sr=44100, mono=True)
-bpm = get_bpm(y, sr)
-print(f"Detected BPM: {bpm}")
-
-if bpm <= 90: 
-    pwm_red.ChangeDutyCycle(0)
-    pwm_yellow.ChangeDutyCycle(0)
-    pwm_green.ChangeDutyCycle(50)
-    pwm_blue.ChangeDutyCycle(50)
-    pwm_white.ChangeDutyCycle(50)
-elif bpm >= 120: 
-    pwm_green.ChangeDutyCycle(0)
-    pwm_blue.ChangeDutyCycle(0)
-    pwm_red.ChangeDutyCycle(80)
-    pwm_yellow.ChangeDutyCycle(80)
-    pwm_white.ChangeDutyCycle(80)
-else:
-    pwm_red.ChangeDutyCycle(30)
-    pwm_yellow.ChangeDutyCycle(30)
-    pwm_green.ChangeDutyCycle(30)
-    pwm_blue.ChangeDutyCycle(30)
-    pwm_white.ChangeDutyCycle(50)
-
-time.sleep(10)
+stream.stop_stream()
+stream.close()
+p.terminate()
 
 for pwm in [pwm_red, pwm_green, pwm_blue, pwm_yellow, pwm_white]:
     pwm.stop()

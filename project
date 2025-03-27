@@ -1,14 +1,13 @@
-import pyaudio
-import numpy as np
 import librosa
+import numpy as np
 import RPi.GPIO as GPIO
 import time
 
-RED_PIN = 17     
-GREEN_PIN = 27   
+RED_PIN = 17    
+GREEN_PIN = 27  
 BLUE_PIN = 22   
-YELLOW_PIN = 23  
-WHITE_PIN = 24   
+YELLOW_PIN = 23 
+WHITE_PIN = 24  
 
 GPIO.setmode(GPIO.BCM)
 for pin in [RED_PIN, GREEN_PIN, BLUE_PIN, YELLOW_PIN, WHITE_PIN]:
@@ -21,70 +20,40 @@ pwm_yellow = GPIO.PWM(YELLOW_PIN, 100)
 pwm_white = GPIO.PWM(WHITE_PIN, 100)
 
 for pwm in [pwm_red, pwm_green, pwm_blue, pwm_yellow, pwm_white]:
-    pwm.start(0)
-
-FORMAT = pyaudio.paInt16
-CHANNELS = 1
-RATE = 44100 
-CHUNK = 1024
-
-audio = pyaudio.PyAudio()
-stream = audio.open(format=FORMAT,
-                    channels=CHANNELS,
-                    rate=RATE,
-                    input=True,
-                    frames_per_buffer=CHUNK)
+    pwm.start(0) 
 
 def get_bpm(y, sr):
     onset_env = librosa.onset.onset_strength(y=y, sr=sr)
     bpm, _ = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr)
     return int(bpm)
 
-try:
-    while True:
-        data = stream.read(CHUNK, exception_on_overflow=False)
-        audio_data = np.frombuffer(data, dtype=np.int16)
+audio_file = 'audio.wav'
 
-        fft_result = np.abs(np.fft.rfft(audio_data))
-        freqs = np.fft.rfftfreq(len(audio_data), 1.0 / RATE)
-        dominant_freq = freqs[np.argmax(fft_result)]
+y, sr = librosa.load(audio_file, sr=44100, mono=True)
+bpm = get_bpm(y, sr)
+print(f"Detected BPM: {bpm}")
 
-        if np.max(np.abs(audio_data)) == 0:
-            normalized_audio = audio_data.astype(float)
-        else:
-            normalized_audio = audio_data.astype(float) / np.max(np.abs(audio_data))
-        
-        bpm = get_bpm(normalized_audio, RATE)
-        print(f"Detected BPM: {bpm}")
+if bpm <= 90: 
+    pwm_red.ChangeDutyCycle(0)
+    pwm_yellow.ChangeDutyCycle(0)
+    pwm_green.ChangeDutyCycle(50)
+    pwm_blue.ChangeDutyCycle(50)
+    pwm_white.ChangeDutyCycle(50)
+elif bpm >= 120: 
+    pwm_green.ChangeDutyCycle(0)
+    pwm_blue.ChangeDutyCycle(0)
+    pwm_red.ChangeDutyCycle(80)
+    pwm_yellow.ChangeDutyCycle(80)
+    pwm_white.ChangeDutyCycle(80)
+else:
+    pwm_red.ChangeDutyCycle(30)
+    pwm_yellow.ChangeDutyCycle(30)
+    pwm_green.ChangeDutyCycle(30)
+    pwm_blue.ChangeDutyCycle(30)
+    pwm_white.ChangeDutyCycle(50)
 
-        if bpm <= 90: 
-            pwm_red.ChangeDutyCycle(0)
-            pwm_yellow.ChangeDutyCycle(0)
-            pwm_green.ChangeDutyCycle(50)
-            pwm_blue.ChangeDutyCycle(50)
-            pwm_white.ChangeDutyCycle(50)
-        elif bpm >= 120:  
-            pwm_green.ChangeDutyCycle(0)
-            pwm_blue.ChangeDutyCycle(0)
-            pwm_red.ChangeDutyCycle(80)
-            pwm_yellow.ChangeDutyCycle(80)
-            pwm_white.ChangeDutyCycle(80)
-        else:  
-            pwm_red.ChangeDutyCycle(30)
-            pwm_yellow.ChangeDutyCycle(30)
-            pwm_green.ChangeDutyCycle(30)
-            pwm_blue.ChangeDutyCycle(30)
-            pwm_white.ChangeDutyCycle(50)
+time.sleep(10)
 
-        time.sleep(0.5)
-
-except KeyboardInterrupt:
-    print("Program finishes")
-
-finally:
-    for pwm in [pwm_red, pwm_green, pwm_blue, pwm_yellow, pwm_white]:
-        pwm.stop()
-    GPIO.cleanup()
-    stream.stop_stream()
-    stream.close()
-    audio.terminate()
+for pwm in [pwm_red, pwm_green, pwm_blue, pwm_yellow, pwm_white]:
+    pwm.stop()
+GPIO.cleanup()

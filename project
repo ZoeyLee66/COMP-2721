@@ -1,47 +1,82 @@
-import librosa
-import numpy as np
-import RPi.GPIO as GPIO
 import time
+import numpy as np
+import librosa
+import pygame
+from gpiozero import LED
 
-RED_PIN = 17    
-GREEN_PIN = 27   
-BLUE_PIN = 22   
-YELLOW_PIN = 23  
-WHITE_PIN = 24  
 
-GPIO.setmode(GPIO.BCM)
-for pin in [RED_PIN, GREEN_PIN, BLUE_PIN, YELLOW_PIN, WHITE_PIN]:
-    GPIO.setup(pin, GPIO.OUT)
+red_led = LED(2)
+yellow_led = LED(3)
+blue_led = LED(4)
+green_led = LED(17)
+white_led = LED(27)
 
-def led_on(pin):
-    GPIO.output(pin, GPIO.HIGH)
 
-def led_off(pin):
-    GPIO.output(pin, GPIO.LOW)
+audio_file = "bb.wav" 
+y, sr = librosa.load(audio_file, sr=None)
 
-def get_bpm(y, sr):
-    onset_env = librosa.onset.onset_strength(y=y, sr=sr)
-    bpm, _ = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr)
-    return int(bpm)
+tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
 
-audio_file = 'audio.mp3' 
-y, sr = librosa.load(audio_file, sr=44100, mono=True)
-bpm = get_bpm(y, sr)
-print(f"Detected BPM: {bpm}")
-
-for pin in [RED_PIN, GREEN_PIN, BLUE_PIN, YELLOW_PIN, WHITE_PIN]:
-    led_off(pin)
-
-if bpm <= 90:
-    led_on(GREEN_PIN)
-    led_on(BLUE_PIN)
-elif bpm >= 120:
-    led_on(RED_PIN)
-    led_on(YELLOW_PIN)
+if isinstance(tempo, np.ndarray):
+    tempo_val = float(tempo[0])
 else:
-    for pin in [RED_PIN, GREEN_PIN, BLUE_PIN, YELLOW_PIN, WHITE_PIN]:
-        led_on(pin)
+    tempo_val = float(tempo)
 
-time.sleep(10)
+print(f"Detected BPM: {tempo_val:.2f}")
 
-GPIO.cleanup()
+if tempo_val <= 90:
+
+    led_sequence = [green_led, blue_led]
+elif tempo_val >= 120:
+    led_sequence = [red_led, yellow_led]
+else:
+
+    led_sequence = [red_led, green_led, blue_led, yellow_led, white_led]
+
+sleep_time = 60.0 / tempo_val * 1.0
+
+if sleep_time < 0.2:
+    sleep_time = 0.2
+elif sleep_time > 2.0:
+    sleep_time = 2.0
+else:
+    sleep_time = 1.0
+
+pygame.mixer.init(frequency=sr)
+pygame.mixer.music.load(audio_file)
+
+
+red_led.off()
+yellow_led.off()
+blue_led.off()
+green_led.off()
+white_led.off()
+
+
+pygame.mixer.music.play()
+print("start")
+
+while pygame.mixer.music.get_busy():
+
+    for led in led_sequence:
+
+        red_led.off()
+        yellow_led.off()
+        blue_led.off()
+        green_led.off()
+        white_led.off()
+
+        led.on()
+        time.sleep(sleep_time)
+
+        if not pygame.mixer.music.get_busy():
+            break
+
+pygame.mixer.music.stop()
+red_led.off()
+yellow_led.off()
+blue_led.off()
+green_led.off()
+white_led.off()
+
+print("end")

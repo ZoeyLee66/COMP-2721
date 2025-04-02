@@ -38,7 +38,7 @@ sleep_time = 60.0 / tempo_val * 1.0
 if sleep_time < 0.2:
     sleep_time = 0.2
 elif sleep_time > 2.0:
-    sleep_time = 2.0
+    sleep_time = 3.0
 else:
     sleep_time = 1.0
 
